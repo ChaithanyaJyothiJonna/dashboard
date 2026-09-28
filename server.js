@@ -67,6 +67,16 @@ app.get('/api/telemetry', (req, res) => {
 
 app.get('/health', (req, res) => res.json({ ok: true, coaches: latestByCoach.size }));
 
+// TEMPORARY — remove once the root page loads correctly.
+app.get('/debug', (req, res) => {
+  const fs = require('fs');
+  let rootFiles = [], publicFiles = null, publicError = null;
+  try { rootFiles = fs.readdirSync(__dirname); } catch (e) { rootFiles = ['error: ' + e.message]; }
+  try { publicFiles = fs.readdirSync(path.join(__dirname, 'public')); }
+  catch (e) { publicError = e.message; }
+  res.json({ __dirname, rootFiles, publicFiles, publicError });
+});
+
 function clampPct(v) {
   const n = Number(v);
   if (Number.isNaN(n)) return null;
