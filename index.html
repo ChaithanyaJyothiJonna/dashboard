@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WLI Telemetry Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c1218; --panel:#131b24; --panel-2:#0f161d; --line:#233040;
+    --text:#dfe6ee; --muted:#7c8b9c; --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;
+    --ok:#3fae8f; --warn:#e0a530; --crit:#e05a4f; --idle:#3a4d61;
+    box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:inherit}
+  html{scroll-padding-top:env(safe-area-inset-top,0px)}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+
+  header{
+    position:sticky;top:0;top:env(safe-area-inset-top,0px);z-index:5;
+    background:var(--panel-2);border-bottom:1px solid var(--line);
+    padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top,0px));
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:baseline;gap:8px}
+  .brand b{font-weight:600;font-size:15px;letter-spacing:.2px}
+  .brand span{color:var(--muted);font-family:var(--mono);font-size:12px}
+  .status{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:auto}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--idle)}
+  .dot.live{background:var(--ok)}
+  .dot.err{background:var(--crit)}
+  button{
+    font-family:var(--sans);font-size:13px;background:transparent;color:var(--text);
+    border:1px solid var(--line);padding:7px 12px;border-radius:3px;cursor:pointer;
+  }
+  button:hover{border-color:#3a4a5c}
+  button:focus-visible, input:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+
+  main{max-width:1100px;margin:0 auto;padding:20px 18px 60px}
+
+  .summary{display:flex;gap:18px;margin-bottom:18px;flex-wrap:wrap}
+  .summary .stat{font-family:var(--mono)}
+  .summary .stat b{display:block;font-size:22px;font-weight:600}
+  .summary .stat small{color:var(--muted);font-size:11px;letter-spacing:.03em}
+
+  #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--idle);padding:14px;border-radius:2px}
+  .card.ok{border-left-color:var(--ok)}
+  .card.warn{border-left-color:var(--warn)}
+  .card.crit{border-left-color:var(--crit)}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+  .coach-id{font-family:var(--mono);font-size:15px;font-weight:600}
+  .tag{font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .badge{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:2px;border:1px solid var(--line)}
+  .badge.ok{color:var(--ok);border-color:var(--ok)}
+  .badge.warn{color:var(--warn);border-color:var(--warn)}
+  .badge.crit{color:var(--crit);border-color:var(--crit)}
+
+  .gauge-row{display:flex;gap:10px;align-items:flex-end;margin:6px 0 10px}
+  .gauge-track{width:22px;height:64px;background:var(--panel-2);border:1px solid var(--line);border-radius:2px;position:relative;overflow:hidden}
+  .gauge-fill{position:absolute;bottom:0;left:0;right:0;transition:height .5s ease}
+  .gauge-fill.ok{background:var(--ok)}
+  .gauge-fill.warn{background:var(--warn)}
+  .gauge-fill.crit{background:var(--crit)}
+  .pct{font-family:var(--mono);font-size:26px;font-weight:600;line-height:1}
+  .pct small{font-size:13px;color:var(--muted);font-weight:400}
+
+  .meta{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7}
+  .meta b{color:var(--text);font-weight:500}
+
+  #empty{color:var(--muted);font-family:var(--mono);font-size:13px;padding:40px 0;text-align:center}
+
+  dialog#cfg{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:20px;width:min(420px,90vw)}
+  dialog#cfg::backdrop{background:rgba(0,0,0,.6)}
+  dialog#cfg h2{font-size:15px;margin:0 0 14px;font-weight:600}
+  dialog#cfg label{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px;font-family:var(--mono)}
+  dialog#cfg input{width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:3px;font-family:var(--mono);font-size:13px}
+  .cfg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+  .hint{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.5}
+  code{background:var(--panel-2);padding:1px 4px;border-radius:2px;font-family:var(--mono)}
+
+  @media (max-width:480px){ #grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><b>WLI Telemetry Board</b><span>coach water level · IoT</span></div>
+  <div class="status"><span class="dot" id="dot"></span><span id="statusText">not configured</span></div>
+  <button id="refreshBtn">Refresh</button>
+  <button id="cfgBtn">Connection</button>
+</header>
+
+<main>
+  <div class="summary">
+    <div class="stat"><b id="sCoaches">0</b><small>COACHES REPORTING</small></div>
+    <div class="stat"><b id="sLow">0</b><small>LOW WATER (&lt;40%)</small></div>
+    <div class="stat"><b id="sEmpty">0</b><small>EMPTY TANKS</small></div>
+    <div class="stat"><b id="sUpdated">—</b><small>LAST POLL</small></div>
+  </div>
+
+  <div id="grid"></div>
+  <div id="empty" style="display:none">No telemetry yet. Set the API endpoint under "Connection" and confirm an MPU has sent data.</div>
+</main>
+
+<dialog id="cfg">
+  <h2>Backend connection</h2>
+  <label for="apiBase">API base URL</label>
+  <input id="apiBase" placeholder="https://your-server.example.com">
+  <label for="apiToken">Bearer token</label>
+  <input id="apiToken" placeholder="shared telemetry token">
+  <label for="pollSec">Poll interval (seconds)</label>
+  <input id="pollSec" type="number" min="5" value="20">
+  <div class="hint">
+    This page polls <code>GET {base}/api/telemetry</code> for the latest reading per coach.
+    Each MPU (EC200U + STM32) should POST its readings to <code>{base}/api/telemetry</code> — see the
+    server and firmware notes provided alongside this page for the exact request shape.
+    Saved only in this browser.
+  </div>
+  <div class="cfg-actions">
+    <button id="cfgCancel">Cancel</button>
+    <button id="cfgSave">Save &amp; connect</button>
+  </div>
+</dialog>
+
+<script>
+(function(){
+  const $ = (id)=>document.getElementById(id);
+  // If this page is served by the telemetry server itself (not opened as a
+  // standalone file/artifact), default to same-origin so it works with zero setup.
+  const sameOrigin = (location.protocol === 'http:' || location.protocol === 'https:') && location.origin !== 'null';
+  let cfg = {base: sameOrigin ? location.origin : '', token:'', poll:20};
+  try {
+    const saved = JSON.parse(localStorage.getItem('wli_cfg')||'null');
+    if (saved) cfg = saved;
+  } catch(e){}
+
+  let timer = null;
+
+  function openCfg(){
+    $('apiBase').value = cfg.base;
+    $('apiToken').value = cfg.token;
+    $('pollSec').value = cfg.poll;
+    $('cfg').showModal();
+  }
+  $('cfgBtn').addEventListener('click', openCfg);
+  $('cfgCancel').addEventListener('click', ()=> $('cfg').close());
+  $('cfgSave').addEventListener('click', ()=>{
+    cfg = {
+      base: $('apiBase').value.trim().replace(/\/$/,''),
+      token: $('apiToken').value.trim(),
+      poll: Math.max(5, parseInt($('pollSec').value,10) || 20)
+    };
+    try { localStorage.setItem('wli_cfg', JSON.stringify(cfg)); } catch(e){}
+    $('cfg').close();
+    restart();
+  });
+  $('refreshBtn').addEventListener('click', poll);
+
+  function setStatus(state, text){
+    $('dot').className = 'dot' + (state ? ' '+state : '');
+    $('statusText').textContent = text;
+  }
+
+  function classify(pct){
+    if (pct === null || pct === undefined) return 'idle';
+    if (pct <= 0) return 'crit';
+    if (pct < 40) return 'warn';
+    return 'ok';
+  }
+
+  function fmtAgo(ts){
+    if (!ts) return '—';
+    const d = new Date(ts);
+    if (isNaN(d)) return String(ts);
+    const s = Math.max(0, Math.round((Date.now()-d.getTime())/1000));
+    if (s < 60) return s+'s ago';
+    if (s < 3600) return Math.round(s/60)+'m ago';
+    return Math.round(s/3600)+'h ago';
+  }
+
+  function render(coaches){
+    const grid = $('grid');
+    grid.innerHTML = '';
+    $('empty').style.display = coaches.length ? 'none' : 'block';
+
+    let low=0, empty=0;
+    coaches
+      .slice()
+      .sort((a,b)=> String(a.coach_number).localeCompare(String(b.coach_number), undefined, {numeric:true}))
+      .forEach(c=>{
+        const pct = (c.water_level_percent === undefined || c.water_level_percent === null) ? null : Number(c.water_level_percent);
+        const cls = classify(pct);
+        if (cls === 'warn') low++;
+        if (cls === 'crit') empty++;
+
+        const card = document.createElement('div');
+        card.className = 'card ' + cls;
+        card.innerHTML = `
+          <div class="card-top">
+            <div>
+              <div class="coach-id">${c.coach_number ?? '—'}</div>
+              <div class="tag">${c.mac_id ?? ''}</div>
+            </div>
+            <div class="badge ${cls}">${cls==='ok'?'NORMAL':cls==='warn'?'LOW WATER':cls==='crit'?'EMPTY':'NO DATA'}</div>
+          </div>
+          <div class="gauge-row">
+            <div class="gauge-track"><div class="gauge-fill ${cls}" style="height:${pct??0}%"></div></div>
+            <div class="pct">${pct===null?'—':pct}<small>%</small></div>
+          </div>
+          <div class="meta">
+            battery: <b>${c.battery_voltage ?? c.battery_percent ?? '—'}${c.battery_voltage?'V':(c.battery_percent?'%':'')}</b><br>
+            gps: <b>${c.latitude!=null && c.longitude!=null ? c.latitude.toFixed?.(3)+', '+c.longitude.toFixed?.(3) : (c.latitude && c.longitude) ? c.latitude+', '+c.longitude : '—'}</b><br>
+            last seen: <b>${fmtAgo(c.timestamp)}</b>
+          </div>`;
+        grid.appendChild(card);
+      });
+
+    $('sCoaches').textContent = coaches.length;
+    $('sLow').textContent = low;
+    $('sEmpty').textContent = empty;
+    $('sUpdated').textContent = new Date().toLocaleTimeString();
+  }
+
+  async function poll(){
+    if (!cfg.base){ setStatus('', 'not configured'); return; }
+    setStatus('', 'polling…');
+    try {
+      const res = await fetch(cfg.base + '/api/telemetry', {
+        headers: cfg.token ? {'Authorization':'Bearer '+cfg.token} : {}
+      });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      const data = await res.json();
+      const coaches = Array.isArray(data) ? data : (data.coaches || []);
+      render(coaches);
+      setStatus('live', 'connected · '+coaches.length+' coach(es)');
+    } catch(err){
+      setStatus('err', 'connection failed');
+    }
+  }
+
+  function restart(){
+    if (timer) clearInterval(timer);
+    poll();
+    timer = setInterval(poll, cfg.poll*1000);
+  }
+
+  if (cfg.base){ restart(); } else { openCfg(); }
+})();
+</script>
+</body>
+</html>
